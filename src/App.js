@@ -466,13 +466,13 @@ const Hero = () => {
       const interval = setInterval(() => {
         setCounters(prev => {
           const newCounters = {
-            properties: prev.properties < 500 ? prev.properties + 10 : 500,
-            clients: prev.clients < 200 ? prev.clients + 5 : 200,
-            years: prev.years < 15 ? prev.years + 1 : 15
+            properties: prev.properties < 1100 ? prev.properties + 10 : 1100,
+            clients: prev.clients < 800 ? prev.clients + 5 : 800,
+            years: prev.years < 20 ? prev.years + 1 : 20
           };
           
           // Stop interval when all counters reach their target
-          if (newCounters.properties === 500 && newCounters.clients === 200 && newCounters.years === 15) {
+          if (newCounters.properties === 1100 && newCounters.clients === 800 && newCounters.years === 20) {
             clearInterval(interval);
           }
           
