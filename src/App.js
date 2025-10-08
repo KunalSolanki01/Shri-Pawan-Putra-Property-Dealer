@@ -344,48 +344,78 @@ function App() {
   );
 }
 
-const Header = ({ user, setShowAuth, handleLogout, setCurrentPage, isAdmin }) => (
-  <header className="header">
-    <div className="container">
-      <div className="logo">
-        <img src="/logo.png" alt="Shri Pawan Putra Property Dealer" className="logo-img" />
-        <h2>Shri Pawan Putra Property Dealer</h2>
+const Header = ({ user, setShowAuth, handleLogout, setCurrentPage, isAdmin }) => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  return (
+    <header className="header">
+      <div className="container">
+        <div className="logo">
+          <img src="/logo.png" alt="Shri Pawan Putra Property Dealer" className="logo-img" />
+          <h2>Shri Pawan Putra Property Dealer</h2>
+        </div>
+        
+        <button 
+          className="mobile-menu-btn"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <nav className={`nav ${mobileMenuOpen ? 'nav-open' : ''}`}>
+          <button onClick={() => {
+            setCurrentPage('home');
+            setTimeout(() => document.getElementById('home')?.scrollIntoView({behavior: 'smooth'}), 100);
+            setMobileMenuOpen(false);
+          }} className="nav-btn">Home</button>
+          <button onClick={() => {
+            setCurrentPage('home');
+            setTimeout(() => document.getElementById('about')?.scrollIntoView({behavior: 'smooth'}), 100);
+            setMobileMenuOpen(false);
+          }} className="nav-btn">About</button>
+          <button onClick={() => {
+            setCurrentPage('home');
+            setTimeout(() => document.getElementById('properties')?.scrollIntoView({behavior: 'smooth'}), 100);
+            setMobileMenuOpen(false);
+          }} className="nav-btn">Properties</button>
+          <button onClick={() => {
+            setCurrentPage('home');
+            setTimeout(() => document.getElementById('contact')?.scrollIntoView({behavior: 'smooth'}), 100);
+            setMobileMenuOpen(false);
+          }} className="nav-btn">Contact</button>
+          {user && (
+            <button onClick={() => {
+              setCurrentPage('recently-visited');
+              setMobileMenuOpen(false);
+            }} className="nav-btn">Recently Visited</button>
+          )}
+          {isAdmin(user) && (
+            <>
+              <button onClick={() => {
+                setCurrentPage('admin-panel');
+                setMobileMenuOpen(false);
+              }} className="nav-btn">Admin Panel</button>
+              <span className="admin-badge">Admin</span>
+            </>
+          )}
+          {user ? (
+            <button onClick={() => {
+              handleLogout();
+              setMobileMenuOpen(false);
+            }} className="auth-btn">Logout</button>
+          ) : (
+            <button onClick={() => {
+              setShowAuth(true);
+              setMobileMenuOpen(false);
+            }} className="auth-btn">Login</button>
+          )}
+        </nav>
       </div>
-      <nav className="nav">
-        <button onClick={() => {
-          setCurrentPage('home');
-          setTimeout(() => document.getElementById('home')?.scrollIntoView({behavior: 'smooth'}), 100);
-        }} className="nav-btn">Home</button>
-        <button onClick={() => {
-          setCurrentPage('home');
-          setTimeout(() => document.getElementById('about')?.scrollIntoView({behavior: 'smooth'}), 100);
-        }} className="nav-btn">About</button>
-        <button onClick={() => {
-          setCurrentPage('home');
-          setTimeout(() => document.getElementById('properties')?.scrollIntoView({behavior: 'smooth'}), 100);
-        }} className="nav-btn">Properties</button>
-        <button onClick={() => {
-          setCurrentPage('home');
-          setTimeout(() => document.getElementById('contact')?.scrollIntoView({behavior: 'smooth'}), 100);
-        }} className="nav-btn">Contact</button>
-        {user && (
-          <button onClick={() => setCurrentPage('recently-visited')} className="nav-btn">Recently Visited</button>
-        )}
-        {isAdmin(user) && (
-          <>
-            <button onClick={() => setCurrentPage('admin-panel')} className="nav-btn">Admin Panel</button>
-            <span className="admin-badge">Admin</span>
-          </>
-        )}
-        {user ? (
-          <button onClick={handleLogout} className="auth-btn">Logout</button>
-        ) : (
-          <button onClick={() => setShowAuth(true)} className="auth-btn">Login</button>
-        )}
-      </nav>
-    </div>
-  </header>
-);
+    </header>
+  );
+};
 
 const AuthModal = ({ authMode, setAuthMode, email, setEmail, password, setPassword, handleAuth, setShowAuth }) => (
   <div className="modal-overlay">
