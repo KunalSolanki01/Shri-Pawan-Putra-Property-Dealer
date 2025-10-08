@@ -1,0 +1,21 @@
+[build]
+  publish = "build"
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[form]
+  name = "contact"
+  action = "/"
+  method = "POST"
+  
+[form]
+  name = "property-contact"
+  action = "/"
+  method = "POST"
