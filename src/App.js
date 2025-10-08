@@ -1073,7 +1073,7 @@ const AdminPanel = ({ properties, updateProperty, deleteProperty, setCurrentPage
 const Footer = () => (
   <footer className="footer">
     <div className="container">
-      <p>&copy; 2025 Shri Pawan Putra Property Dealer. All rights reserved.</p>
+      <p>2025 Shri Pawan Putra Property Dealer. Made By Son Of Hari Solanki</p>
     </div>
   </footer>
 );

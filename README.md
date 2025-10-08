@@ -12,9 +12,9 @@ A modern real estate website built with React and Firebase for Hari Solanki's pr
 
 ## Contact Information
 
-**Hari Solanki**
-- Address: A-72, 80 Foot Road, Shankar Nagar, PF Office, Jodhpur
-- Phone: 8209953768
+**Kunal Solanki son of Hari**
+- Address: Jodhpur
+- Phone: 820995****
 
 ## Getting Started
 
