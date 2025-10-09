@@ -702,35 +702,59 @@ const Contact = () => {
     phone: '',
     message: ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
-    // Create email content
-    const subject = `Property Inquiry from ${formData.name}`;
-    const emailBody = `Hi Hari Solanki,\n\nNew property inquiry:\n\nName: ${formData.name}\nEmail: ${formData.email}\nPhone: ${formData.phone}\n\nMessage:\n${formData.message}\n\nBest regards,\n${formData.name}`;
-    
-    // Open email client
-    const mailtoLink = `mailto:rajahari435@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
-    window.location.href = mailtoLink;
-    
-    // Store in Firebase (optional)
     try {
-      addDoc(collection(db, 'contacts'), {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        message: formData.message,
-        timestamp: new Date(),
-        type: 'general'
+      // Submit to Web3Forms
+      const response = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          access_key: '969c2319-e0cb-4e33-9849-9d0ae1755750',
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          message: formData.message,
+          subject: `Property Inquiry from ${formData.name}`,
+          from_name: 'Shri Pawan Putra Property Dealer Website'
+        })
       });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Store in Firebase (optional)
+        try {
+          addDoc(collection(db, 'contacts'), {
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            message: formData.message,
+            timestamp: new Date(),
+            type: 'general'
+          });
+        } catch (error) {
+          console.log('Firebase storage failed:', error);
+        }
+        
+        // Clear form and show success message
+        setFormData({ name: '', email: '', phone: '', message: '' });
+        alert('Thank you! Your message has been sent successfully. We will contact you soon.');
+      } else {
+        throw new Error('Form submission failed');
+      }
     } catch (error) {
-      console.log('Firebase storage failed:', error);
+      console.error('Error submitting form:', error);
+      alert('Sorry, there was an error sending your message. Please try again or contact us directly.');
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    // Clear form and show success message
-    setFormData({ name: '', email: '', phone: '', message: '' });
-    alert('Thank you! Your email client will open. Please send the email to complete your inquiry.');
   };
 
   return (
@@ -778,8 +802,8 @@ const Contact = () => {
               onChange={(e) => setFormData({...formData, message: e.target.value})}
               required
             ></textarea>
-            <button type="submit">
-              Send Message
+            <button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Sending...' : 'Send Message'}
             </button>
           </form>
         </div>
@@ -833,37 +857,62 @@ const ContactPage = ({ property, setCurrentPage }) => {
     phone: '',
     message: property ? `I'm interested in ${property.title} (${property.size}) at ${property.location} - ${property.price}` : ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
-    // Store in Firebase
     try {
-      addDoc(collection(db, 'contacts'), {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        message: formData.message,
-        property: property ? property.title : '',
-        propertyLocation: property ? property.location : '',
-        propertyPrice: property ? property.price : '',
-        timestamp: new Date(),
-        type: 'property'
+      // Submit to Web3Forms
+      const response = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          access_key: '969c2319-e0cb-4e33-9849-9d0ae1755750',
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          message: formData.message + (property ? `\n\nProperty Details:\nTitle: ${property.title}\nLocation: ${property.location}\nPrice: ${property.price}\nSize: ${property.size}` : ''),
+          subject: property ? `Property Inquiry - ${property.title}` : 'General Inquiry',
+          from_name: 'Shri Pawan Putra Property Dealer Website'
+        })
       });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Store in Firebase
+        try {
+          addDoc(collection(db, 'contacts'), {
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            message: formData.message,
+            property: property ? property.title : '',
+            propertyLocation: property ? property.location : '',
+            propertyPrice: property ? property.price : '',
+            timestamp: new Date(),
+            type: 'property'
+          });
+        } catch (error) {
+          console.log('Firebase storage failed:', error);
+        }
+        
+        alert('Thank you! Your inquiry has been sent successfully. We will contact you soon.');
+        setFormData({ name: '', email: '', phone: '', message: '' });
+        setCurrentPage('home');
+      } else {
+        throw new Error('Form submission failed');
+      }
     } catch (error) {
-      console.log('Firebase storage failed:', error);
+      console.error('Error submitting form:', error);
+      alert('Sorry, there was an error sending your message. Please try again or contact us directly.');
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    // Send email via mailto
-    const subject = property ? `Property Inquiry - ${property.title}` : 'General Inquiry';
-    const body = `Name: ${formData.name}\nEmail: ${formData.email}\nPhone: ${formData.phone}\nMessage: ${formData.message}${property ? `\n\nProperty: ${property.title}\nLocation: ${property.location}\nPrice: ${property.price}` : ''}`;
-    const mailtoLink = `mailto:rajahari435@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    
-    window.open(mailtoLink, '_blank');
-    
-    alert('Thank you! Your inquiry has been sent to kunalsol2005@gmail.com');
-    setFormData({ name: '', email: '', phone: '', message: '' });
-    setCurrentPage('home');
   };
 
   return (
@@ -907,8 +956,8 @@ const ContactPage = ({ property, setCurrentPage }) => {
               required
               rows="6"
             ></textarea>
-            <button type="submit">
-              Send Message
+            <button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Sending...' : 'Send Message'}
             </button>
           </form>
         </div>
