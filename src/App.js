@@ -43,13 +43,9 @@ function App() {
   };
 
   useEffect(() => {
-    // Load sample properties immediately
     setProperties(getSampleProperties());
-    
-    // Then try to load Firebase properties
     loadProperties();
     
-    // Try to set up Firebase auth, but don't fail if it doesn't work
     try {
       const unsubscribe = onAuthStateChanged(auth, (user) => {
         setUser(user);
@@ -57,7 +53,6 @@ function App() {
       return () => unsubscribe();
     } catch (error) {
       console.log('Firebase auth not available:', error);
-      // Don't auto-login, let users browse without login
       setUser(null);
     }
   }, []);
@@ -176,15 +171,11 @@ function App() {
         ...doc.data()
       }));
       
-      // Get sample properties
       const sampleProperties = getSampleProperties();
-      
-      // Combine Firebase properties with sample properties
       const allProperties = [...firebaseProperties, ...sampleProperties];
       setProperties(allProperties);
     } catch (error) {
       console.error('Error loading properties:', error);
-      // If Firebase fails, just show sample properties
       setProperties(getSampleProperties());
     }
   };
@@ -206,7 +197,6 @@ function App() {
       console.error('Auth error:', error);
       if (error.code === 'auth/operation-not-allowed') {
         alert('Email/Password authentication is not enabled. Please contact the administrator or use the demo account.');
-        // Auto-login as demo user
         setUser({ email: 'demo@pawanputra.com', uid: 'demo-user' });
         setShowAuth(false);
       } else if (error.code === 'auth/user-not-found') {
@@ -226,7 +216,6 @@ function App() {
   };
 
   const addProperty = async (propertyData) => {
-    // Add to UI immediately
     const newProperty = {
       id: 'temp_' + Date.now(),
       ...propertyData,
@@ -234,19 +223,16 @@ function App() {
     };
     setProperties(prev => [newProperty, ...prev]);
     
-    // Try Firebase in background
     try {
       const docRef = await addDoc(collection(db, 'properties'), {
         ...propertyData,
         createdAt: new Date()
       });
       
-      // Update with Firebase ID
       setProperties(prev => prev.map(p => 
         p.id === newProperty.id ? { ...p, id: docRef.id } : p
       ));
     } catch (error) {
-      // Keep local ID if Firebase fails
       setProperties(prev => prev.map(p => 
         p.id === newProperty.id ? { ...p, id: 'local_' + Date.now() } : p
       ));
@@ -254,12 +240,10 @@ function App() {
   };
 
   const updateProperty = async (propertyId, updatedData) => {
-    // Update UI immediately
     setProperties(prev => prev.map(p => 
       p.id === propertyId ? { ...p, ...updatedData } : p
     ));
     
-    // Try Firebase in background
     if (propertyId && !propertyId.startsWith('local_') && !propertyId.startsWith('sample_') && !propertyId.startsWith('temp_')) {
       try {
         await updateDoc(doc(db, 'properties', propertyId), updatedData);
@@ -271,10 +255,8 @@ function App() {
 
   const deleteProperty = async (propertyId) => {
     if (window.confirm('Are you sure you want to delete this property?')) {
-      // Remove from UI immediately
       setProperties(prev => prev.filter(p => p.id !== propertyId));
       
-      // Try Firebase in background
       if (propertyId && !propertyId.startsWith('local_') && !propertyId.startsWith('sample_') && !propertyId.startsWith('temp_')) {
         try {
           await deleteDoc(doc(db, 'properties', propertyId));
@@ -471,7 +453,6 @@ const Hero = () => {
             years: prev.years < 20 ? prev.years + 1 : 20
           };
           
-          // Stop interval when all counters reach their target
           if (newCounters.properties === 1100 && newCounters.clients === 800 && newCounters.years === 20) {
             clearInterval(interval);
           }
@@ -541,31 +522,42 @@ const Properties = ({ properties, user, addProperty, setCurrentPage, setSelected
     type: '',
     description: '',
     image: '',
+    images: [],
     size: ''
   });
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [imageFiles, setImageFiles] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
 
   const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const imageDataUrl = e.target.result;
-        setImagePreview(imageDataUrl);
-        setNewProperty({...newProperty, image: imageDataUrl});
-      };
-      reader.readAsDataURL(file);
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      setImageFiles(files);
+      const previews = [];
+      const images = [];
+      
+      files.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const imageDataUrl = e.target.result;
+          previews.push(imageDataUrl);
+          images.push(imageDataUrl);
+          
+          if (previews.length === files.length) {
+            setImagePreviews(previews);
+            setNewProperty({...newProperty, image: images[0], images: images});
+          }
+        };
+        reader.readAsDataURL(file);
+      });
     }
   };
 
   const handleAddProperty = (e) => {
     e.preventDefault();
     addProperty(newProperty);
-    setNewProperty({ title: '', price: '', location: '', type: '', description: '', image: '', size: '' });
-    setImageFile(null);
-    setImagePreview(null);
+    setNewProperty({ title: '', price: '', location: '', type: '', description: '', image: '', images: [], size: '' });
+    setImageFiles([]);
+    setImagePreviews([]);
     setShowAddForm(false);
   };
 
@@ -633,20 +625,23 @@ const Properties = ({ properties, user, addProperty, setCurrentPage, setSelected
                   value={newProperty.size}
                   onChange={(e) => setNewProperty({...newProperty, size: e.target.value})}
                 />
-                <div className={`file-upload ${imageFile ? 'has-file' : ''}`}>
+                <div className={`file-upload ${imageFiles.length > 0 ? 'has-file' : ''}`}>
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={handleImageChange}
-                    id="property-image"
+                    id="property-images"
                   />
-                  <label htmlFor="property-image" className="file-upload-label">
-                    {imageFile ? `📷 ${imageFile.name}` : '📷 Upload Property Image (Optional)'}
+                  <label htmlFor="property-images" className="file-upload-label">
+                    {imageFiles.length > 0 ? `📷 ${imageFiles.length} Images Selected` : '📷 Upload Property Images (Multiple)'}
                   </label>
                 </div>
-                {imagePreview && (
-                  <div className="image-preview">
-                    <img src={imagePreview} alt="Property preview" />
+                {imagePreviews.length > 0 && (
+                  <div className="images-preview">
+                    {imagePreviews.map((preview, index) => (
+                      <img key={index} src={preview} alt={`Property preview ${index + 1}`} style={{width: '80px', height: '60px', objectFit: 'cover', margin: '5px', borderRadius: '5px'}} />
+                    ))}
                   </div>
                 )}
                 <button type="submit">Add Property</button>
@@ -709,7 +704,6 @@ const Contact = () => {
     setIsSubmitting(true);
     
     try {
-      // Submit to Web3Forms
       const response = await fetch('https://api.web3forms.com/submit', {
         method: 'POST',
         headers: {
@@ -729,7 +723,6 @@ const Contact = () => {
       const result = await response.json();
       
       if (result.success) {
-        // Store in Firebase (optional)
         try {
           addDoc(collection(db, 'contacts'), {
             name: formData.name,
@@ -743,7 +736,6 @@ const Contact = () => {
           console.log('Firebase storage failed:', error);
         }
         
-        // Clear form and show success message
         setFormData({ name: '', email: '', phone: '', message: '' });
         alert('Thank you! Your message has been sent successfully. We will contact you soon.');
       } else {
@@ -813,36 +805,57 @@ const Contact = () => {
 };
 
 const PropertyDetails = ({ property, setCurrentPage }) => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
   if (!property) return null;
   
+  const images = property.images && property.images.length > 0 ? property.images : [property.image];
+  
   return (
-    <div className="property-details-page">
-      <div className="container">
-        <button className="back-btn" onClick={() => setCurrentPage('home')}>← Back to Properties</button>
-        <div className="property-details-content">
-          <div className="property-image-large">
-            <img src={property.image} alt={property.title} />
-          </div>
-          <div className="property-info">
-            <h1>{property.title}</h1>
-            <div className="property-price-large">{property.price}</div>
-            <div className="property-meta-large">
-              <p><strong>📍 Location:</strong> {property.location}</p>
-              <p><strong>📐 Size:</strong> {property.size}</p>
-              <p><strong>🏠 Type:</strong> {property.type}</p>
+    <div className="app light">
+      <div className="property-details-page">
+        <div className="container">
+          <button className="back-btn" onClick={() => setCurrentPage('home')}>← Back to Properties</button>
+          <div className="property-details-content">
+            <div className="property-images-section">
+              <div className="main-image">
+                <img src={images[currentImageIndex]} alt={property.title} />
+              </div>
+              {images.length > 1 && (
+                <div className="image-thumbnails">
+                  {images.map((img, index) => (
+                    <img 
+                      key={index} 
+                      src={img} 
+                      alt={`${property.title} ${index + 1}`}
+                      className={currentImageIndex === index ? 'active' : ''}
+                      onClick={() => setCurrentImageIndex(index)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="property-description-large">
-              <h3>Description</h3>
-              <p>{property.description}</p>
+            <div className="property-info">
+              <h1>{property.title}</h1>
+              <div className="property-price-large">{property.price}</div>
+              <div className="property-meta-large">
+                <p><strong>📍 Location:</strong> {property.location}</p>
+                <p><strong>📐 Size:</strong> {property.size}</p>
+                <p><strong>🏠 Type:</strong> {property.type}</p>
+              </div>
+              <div className="property-description-large">
+                <h3>Description</h3>
+                <p>{property.description}</p>
+              </div>
+              <div className="property-contact-info">
+                <h3>Contact Information</h3>
+                <p><strong>Hari Solanki</strong></p>
+                <p>📞 <a href="tel:+918209953768">8209953768</a></p>
+                <p>📞 <a href="tel:+919982351222">9982351222</a></p>
+                <p>✉️ <a href="mailto:rajahari435@gmail.com">rajahari435@gmail.com</a></p>
+              </div>
+              <button className="contact-now-btn" onClick={() => setCurrentPage('contact-page')}>Contact Now</button>
             </div>
-            <div className="property-contact-info">
-              <h3>Contact Information</h3>
-              <p><strong>Hari Solanki</strong></p>
-              <p>📞 <a href="tel:+918209953768">8209953768</a></p>
-              <p>📞 <a href="tel:+919982351222">9982351222</a></p>
-              <p>✉️ <a href="mailto:rajahari435@gmail.com">rajahari435@gmail.com</a></p>
-            </div>
-            <button className="contact-now-btn" onClick={() => setCurrentPage('contact-page')}>Contact Now</button>
           </div>
         </div>
       </div>
@@ -864,7 +877,6 @@ const ContactPage = ({ property, setCurrentPage }) => {
     setIsSubmitting(true);
     
     try {
-      // Submit to Web3Forms
       const response = await fetch('https://api.web3forms.com/submit', {
         method: 'POST',
         headers: {
@@ -884,7 +896,6 @@ const ContactPage = ({ property, setCurrentPage }) => {
       const result = await response.json();
       
       if (result.success) {
-        // Store in Firebase
         try {
           addDoc(collection(db, 'contacts'), {
             name: formData.name,
@@ -916,50 +927,52 @@ const ContactPage = ({ property, setCurrentPage }) => {
   };
 
   return (
-    <div className="contact-page">
-      <div className="container">
-        <button className="back-btn" onClick={() => setCurrentPage('home')}>← Back to Home</button>
-        <div className="contact-page-content">
-          <h1>Contact Us</h1>
-          {property && (
-            <div className="property-inquiry-info">
-              <h3>Property Inquiry: {property.title}</h3>
-              <p>{property.location} - {property.price}</p>
-            </div>
-          )}
-          <form className="contact-page-form" onSubmit={handleSubmit}>
-            <input 
-              type="text" 
-              placeholder="Your Name" 
-              value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
-              required 
-            />
-            <input 
-              type="email" 
-              placeholder="Your Email" 
-              value={formData.email}
-              onChange={(e) => setFormData({...formData, email: e.target.value})}
-              required 
-            />
-            <input 
-              type="tel" 
-              placeholder="Your Phone" 
-              value={formData.phone}
-              onChange={(e) => setFormData({...formData, phone: e.target.value})}
-              required 
-            />
-            <textarea 
-              placeholder="Your Message" 
-              value={formData.message}
-              onChange={(e) => setFormData({...formData, message: e.target.value})}
-              required
-              rows="6"
-            ></textarea>
-            <button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Sending...' : 'Send Message'}
-            </button>
-          </form>
+    <div className="app light">
+      <div className="contact-page">
+        <div className="container">
+          <button className="back-btn" onClick={() => setCurrentPage('home')}>← Back to Home</button>
+          <div className="contact-page-content">
+            <h1>Contact Us</h1>
+            {property && (
+              <div className="property-inquiry-info">
+                <h3>Property Inquiry: {property.title}</h3>
+                <p>{property.location} - {property.price}</p>
+              </div>
+            )}
+            <form className="contact-page-form" onSubmit={handleSubmit}>
+              <input 
+                type="text" 
+                placeholder="Your Name" 
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                required 
+              />
+              <input 
+                type="email" 
+                placeholder="Your Email" 
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                required 
+              />
+              <input 
+                type="tel" 
+                placeholder="Your Phone" 
+                value={formData.phone}
+                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                required 
+              />
+              <textarea 
+                placeholder="Your Message" 
+                value={formData.message}
+                onChange={(e) => setFormData({...formData, message: e.target.value})}
+                required
+                rows="6"
+              ></textarea>
+              <button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Sending...' : 'Send Message'}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
@@ -968,52 +981,54 @@ const ContactPage = ({ property, setCurrentPage }) => {
 
 const RecentlyVisited = ({ recentlyVisited, setCurrentPage, setSelectedProperty, addToRecentlyVisited }) => {
   return (
-    <div className="recently-visited-page">
-      <div className="container">
-        <button className="back-btn" onClick={() => setCurrentPage('home')}>← Back to Home</button>
-        <h1>Recently Visited Properties</h1>
-        {recentlyVisited.length === 0 ? (
-          <div className="no-properties">
-            <p>No recently visited properties yet.</p>
-            <button onClick={() => setCurrentPage('home')} className="cta-btn">Browse Properties</button>
-          </div>
-        ) : (
-          <div className="properties-grid">
-            {recentlyVisited.map((property, index) => (
-              <div key={index} className="property-card">
-                {property.image && (
-                  <div className="property-image">
-                    <img src={property.image} alt={property.title} />
-                  </div>
-                )}
-                <div className="property-content">
-                  <div className="property-header">
-                    <h3>{property.title}</h3>
-                    {property.size && <span className="property-size">{property.size}</span>}
-                  </div>
-                  <p className="price">{property.price}</p>
-                  <div className="property-meta">
-                    <p className="location">📍 {property.location}</p>
-                    <p className="type">🏠 {property.type}</p>
-                  </div>
-                  <p className="description">{property.description}</p>
-                  <div className="property-actions">
-                    <button className="view-details-btn" onClick={() => {
-                      addToRecentlyVisited(property);
-                      setSelectedProperty(property);
-                      setCurrentPage('property-details');
-                    }}>View Details</button>
-                    <button className="contact-btn" onClick={() => {
-                      addToRecentlyVisited(property);
-                      setSelectedProperty(property);
-                      setCurrentPage('contact-page');
-                    }}>Contact</button>
+    <div className="app light">
+      <div className="recently-visited-page">
+        <div className="container">
+          <button className="back-btn" onClick={() => setCurrentPage('home')}>← Back to Home</button>
+          <h1>Recently Visited Properties</h1>
+          {recentlyVisited.length === 0 ? (
+            <div className="no-properties">
+              <p>No recently visited properties yet.</p>
+              <button onClick={() => setCurrentPage('home')} className="cta-btn">Browse Properties</button>
+            </div>
+          ) : (
+            <div className="properties-grid">
+              {recentlyVisited.map((property, index) => (
+                <div key={index} className="property-card">
+                  {property.image && (
+                    <div className="property-image">
+                      <img src={property.image} alt={property.title} />
+                    </div>
+                  )}
+                  <div className="property-content">
+                    <div className="property-header">
+                      <h3>{property.title}</h3>
+                      {property.size && <span className="property-size">{property.size}</span>}
+                    </div>
+                    <p className="price">{property.price}</p>
+                    <div className="property-meta">
+                      <p className="location">📍 {property.location}</p>
+                      <p className="type">🏠 {property.type}</p>
+                    </div>
+                    <p className="description">{property.description}</p>
+                    <div className="property-actions">
+                      <button className="view-details-btn" onClick={() => {
+                        addToRecentlyVisited(property);
+                        setSelectedProperty(property);
+                        setCurrentPage('property-details');
+                      }}>View Details</button>
+                      <button className="contact-btn" onClick={() => {
+                        addToRecentlyVisited(property);
+                        setSelectedProperty(property);
+                        setCurrentPage('contact-page');
+                      }}>Contact</button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1022,27 +1037,37 @@ const RecentlyVisited = ({ recentlyVisited, setCurrentPage, setSelectedProperty,
 const AdminPanel = ({ properties, updateProperty, deleteProperty, setCurrentPage }) => {
   const [editingProperty, setEditingProperty] = useState(null);
   const [editForm, setEditForm] = useState({});
-  const [editImageFile, setEditImageFile] = useState(null);
-  const [editImagePreview, setEditImagePreview] = useState(null);
+  const [editImageFiles, setEditImageFiles] = useState([]);
+  const [editImagePreviews, setEditImagePreviews] = useState([]);
 
   const handleEdit = (property) => {
     setEditingProperty(property.id);
     setEditForm({...property});
-    setEditImageFile(null);
-    setEditImagePreview(property.image || null);
+    setEditImageFiles([]);
+    setEditImagePreviews(property.images || [property.image].filter(Boolean));
   };
 
   const handleEditImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setEditImageFile(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const imageDataUrl = e.target.result;
-        setEditImagePreview(imageDataUrl);
-        setEditForm({...editForm, image: imageDataUrl});
-      };
-      reader.readAsDataURL(file);
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      setEditImageFiles(files);
+      const previews = [];
+      const images = [];
+      
+      files.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const imageDataUrl = e.target.result;
+          previews.push(imageDataUrl);
+          images.push(imageDataUrl);
+          
+          if (previews.length === files.length) {
+            setEditImagePreviews(previews);
+            setEditForm({...editForm, image: images[0], images: images});
+          }
+        };
+        reader.readAsDataURL(file);
+      });
     }
   };
 
@@ -1050,99 +1075,104 @@ const AdminPanel = ({ properties, updateProperty, deleteProperty, setCurrentPage
     e.preventDefault();
     updateProperty(editingProperty, editForm);
     setEditingProperty(null);
-    setEditImageFile(null);
-    setEditImagePreview(null);
+    setEditImageFiles([]);
+    setEditImagePreviews([]);
   };
 
   return (
-    <div className="admin-panel">
-      <div className="container">
-        <button className="back-btn" onClick={() => setCurrentPage('home')}>← Back to Home</button>
-        <h1>Admin Panel - Manage Properties</h1>
-        <div className="admin-properties-grid">
-          {properties.map((property, index) => (
-            <div key={property.id} className="admin-property-card">
-              {editingProperty === property.id ? (
-                <form onSubmit={handleUpdate} className="edit-form">
-                  <input
-                    type="text"
-                    value={editForm.title}
-                    onChange={(e) => setEditForm({...editForm, title: e.target.value})}
-                    required
-                  />
-                  <input
-                    type="text"
-                    value={editForm.price}
-                    onChange={(e) => setEditForm({...editForm, price: e.target.value})}
-                    required
-                  />
-                  <input
-                    type="text"
-                    value={editForm.location}
-                    onChange={(e) => setEditForm({...editForm, location: e.target.value})}
-                    required
-                  />
-                  <select
-                    value={editForm.type}
-                    onChange={(e) => setEditForm({...editForm, type: e.target.value})}
-                    required
-                  >
-                    <option value="House">House</option>
-                    <option value="Plot">Plot</option>
-                    <option value="Agriculture Land">Agriculture Land</option>
-                    <option value="Commercial">Commercial</option>
-                  </select>
-                  <textarea
-                    value={editForm.description}
-                    onChange={(e) => setEditForm({...editForm, description: e.target.value})}
-                    required
-                  />
-                  <input
-                    type="text"
-                    value={editForm.size || ''}
-                    onChange={(e) => setEditForm({...editForm, size: e.target.value})}
-                  />
-                  <div className={`file-upload ${editImageFile ? 'has-file' : ''}`}>
+    <div className="app light">
+      <div className="admin-panel">
+        <div className="container">
+          <button className="back-btn" onClick={() => setCurrentPage('home')}>← Back to Home</button>
+          <h1>Admin Panel - Manage Properties</h1>
+          <div className="admin-properties-grid">
+            {properties.map((property) => (
+              <div key={property.id} className="admin-property-card">
+                {editingProperty === property.id ? (
+                  <form onSubmit={handleUpdate} className="edit-form">
                     <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleEditImageChange}
-                      id={`edit-image-${editingProperty}`}
+                      type="text"
+                      value={editForm.title}
+                      onChange={(e) => setEditForm({...editForm, title: e.target.value})}
+                      required
                     />
-                    <label htmlFor={`edit-image-${editingProperty}`} className="file-upload-label">
-                      {editImageFile ? `📷 ${editImageFile.name}` : '📷 Change Property Image'}
-                    </label>
-                  </div>
-                  {editImagePreview && (
-                    <div className="image-preview">
-                      <img src={editImagePreview} alt="Property preview" />
+                    <input
+                      type="text"
+                      value={editForm.price}
+                      onChange={(e) => setEditForm({...editForm, price: e.target.value})}
+                      required
+                    />
+                    <input
+                      type="text"
+                      value={editForm.location}
+                      onChange={(e) => setEditForm({...editForm, location: e.target.value})}
+                      required
+                    />
+                    <select
+                      value={editForm.type}
+                      onChange={(e) => setEditForm({...editForm, type: e.target.value})}
+                      required
+                    >
+                      <option value="House">House</option>
+                      <option value="Plot">Plot</option>
+                      <option value="Agriculture Land">Agriculture Land</option>
+                      <option value="Commercial">Commercial</option>
+                    </select>
+                    <textarea
+                      value={editForm.description}
+                      onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+                      required
+                    />
+                    <input
+                      type="text"
+                      value={editForm.size || ''}
+                      onChange={(e) => setEditForm({...editForm, size: e.target.value})}
+                    />
+                    <div className={`file-upload ${editImageFiles.length > 0 ? 'has-file' : ''}`}>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleEditImageChange}
+                        id={`edit-images-${editingProperty}`}
+                      />
+                      <label htmlFor={`edit-images-${editingProperty}`} className="file-upload-label">
+                        {editImageFiles.length > 0 ? `📷 ${editImageFiles.length} New Images` : '📷 Change Property Images'}
+                      </label>
                     </div>
-                  )}
-                  <div className="edit-actions">
-                    <button type="submit" className="save-btn">Save</button>
-                    <button type="button" onClick={() => {
-                      setEditingProperty(null);
-                      setEditImageFile(null);
-                      setEditImagePreview(null);
-                    }} className="cancel-btn">Cancel</button>
-                  </div>
-                </form>
-              ) : (
-                <>
-                  <div className="admin-property-info">
-                    <h3>{property.title}</h3>
-                    <p className="price">{property.price}</p>
-                    <p>{property.location}</p>
-                    <p>{property.type} - {property.size}</p>
-                  </div>
-                  <div className="admin-actions">
-                    <button onClick={() => handleEdit(property)} className="edit-btn">Edit</button>
-                    <button onClick={() => deleteProperty(property.id)} className="delete-btn">Delete</button>
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
+                    {editImagePreviews.length > 0 && (
+                      <div className="images-preview">
+                        {editImagePreviews.map((preview, index) => (
+                          <img key={index} src={preview} alt={`Property preview ${index + 1}`} style={{width: '80px', height: '60px', objectFit: 'cover', margin: '5px', borderRadius: '5px'}} />
+                        ))}
+                      </div>
+                    )}
+                    <div className="edit-actions">
+                      <button type="submit" className="save-btn">Save</button>
+                      <button type="button" onClick={() => {
+                        setEditingProperty(null);
+                        setEditImageFiles([]);
+                        setEditImagePreviews([]);
+                      }} className="cancel-btn">Cancel</button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <div className="admin-property-info">
+                      <h3>{property.title}</h3>
+                      <p className="price">{property.price}</p>
+                      <p>{property.location}</p>
+                      <p>{property.type} - {property.size}</p>
+                    </div>
+                    <div className="admin-actions">
+                      <button onClick={() => handleEdit(property)} className="edit-btn">Edit</button>
+                      <button onClick={() => deleteProperty(property.id)} className="delete-btn">Delete</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
